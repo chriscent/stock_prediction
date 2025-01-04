@@ -9,9 +9,7 @@ class Controller():
     def get_stock_symbols(self):
         return fetch_nse_symbols()
         
-    def generate_and_display_graph(self, selected_items, year_selected, component_number):
-        print(selected_items, year_selected, component_number)
-        
+    def generate_and_display_graph(self, selected_items, year_selected=1, component_number=5):
         for stock in selected_items:
             if ".BO" in stock:
                 modified_stock_symbol = stock
