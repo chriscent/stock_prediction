@@ -1,5 +1,5 @@
 import sys
-from PySide6.QtWidgets import QApplication, QMainWindow, QListWidget, QComboBox, QPushButton, QVBoxLayout, QWidget, QTextEdit, QLineEdit, QListView, QAbstractItemView, QLabel
+from PySide6.QtWidgets import QApplication, QMainWindow, QListWidget, QComboBox, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QTextEdit, QLineEdit, QListView, QAbstractItemView, QLabel
 from PySide6.QtCore import Qt, QSortFilterProxyModel, QStringListModel
 from PySide6.QtGui import QFont
 
@@ -10,8 +10,10 @@ controller = Controller()
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-
-        self.setWindowTitle("Cool Futuristic App")
+        
+        self.selected_options = self.load_selected_options()
+        self.make_selected_items_unique()
+        self.setWindowTitle("Stock App")
         self.setGeometry(100, 100, 400, 400)
 
         # Create a text box
@@ -51,10 +53,22 @@ class MainWindow(QMainWindow):
         self.combo3.setCurrentText("5")
         self.combo3.setFont(QFont("Arial", 12))
 
-        # Create a button
-        self.button = QPushButton("Submit")
-        self.button.setFont(QFont("Arial", 14))
-        self.button.clicked.connect(self.print_selected_options)
+        # Create a buttons
+        self.button1 = QPushButton("Add")
+        self.button1.setFont(QFont("Arial", 14))
+        self.button1.clicked.connect(self.add_stocks)
+        
+        self.button2 = QPushButton("Remove")
+        self.button2.setFont(QFont("Arial", 14))
+        self.button2.clicked.connect(self.remove_stocks)
+        
+        self.button3 = QPushButton("Save")
+        self.button3.setFont(QFont("Arial", 14))
+        self.button3.clicked.connect(self.save_options)
+        
+        self.button4 = QPushButton("Submit")
+        self.button4.setFont(QFont("Arial", 14))
+        self.button4.clicked.connect(self.print_selected_options)
 
         # Set up the layout
         layout = QVBoxLayout()
@@ -65,11 +79,21 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.combo2)
         layout.addWidget(self.label2)
         layout.addWidget(self.combo3)
-        layout.addWidget(self.button)
+        
+        layout2 = QHBoxLayout()
+        layout2.addWidget(self.button1)
+        layout2.addWidget(self.button2)
+        layout2.addWidget(self.button3)
+        layout2.addWidget(self.button4)
+        
+        layout.addLayout(layout2)
 
         container = QWidget()
         container.setLayout(layout)
         self.setCentralWidget(container)
+        
+        
+        self.update_stocks_in_textbox()
 
         # Apply CSS
         self.setStyleSheet("""
@@ -144,22 +168,78 @@ class MainWindow(QMainWindow):
                 color: #ffffff;
             }
         """)
+        
+    def update_stocks_in_textbox(self, save=False):
+        text_to_print = ""
+        if save:
+            text_to_print = "Options Saved!\n"
+            
+        text_to_print = text_to_print + " ".join(self.selected_options["selected_items"])
+        self.text_box.setText(text_to_print)
+        
+    def make_selected_items_unique(self):
+        self.selected_options["selected_items"] = list(set(self.selected_options["selected_items"]))
+    
+    def fetch_wishlist(self):
+        with open('wishlist_stocks.txt', 'r') as file:
+            lines = file.readlines()
+            # Remove newline characters
+            symbols = [line.strip() for line in lines]
+            
+        return symbols
+    
+    def load_selected_options(self):
+        return { "selected_items": self.fetch_wishlist()}
+        
 
     def filter_list(self, text):
         self.proxy_model.setFilterFixedString(text)
+        
+    def get_selected_items(self):
+        selected_indexes = self.list_view.selectionModel().selectedIndexes()
+        return [index.data() for index in selected_indexes]
+        
+    def add_stocks(self):
+        selected_items = self.get_selected_items()
+        self.selected_options["selected_items"].extend(selected_items)
+        self.make_selected_items_unique()
+        self.update_stocks_in_textbox()
+        
+    def remove_stocks(self):
+        selected_items = self.get_selected_items()
+        self.selected_options["selected_items"] = [stock for stock in self.selected_options["selected_items"] if stock not in selected_items]
+        self.make_selected_items_unique()
+        self.update_stocks_in_textbox()
+        
+    def save_options(self):
+        # Open the file nums.txt in write mode
+        with open('wishlist_stocks.txt', 'w') as file:
+            # Write each element of list1 to the file, one per line
+            for item in self.selected_options["selected_items"]:
+                file.write(f"{item}\n")
+                
+        self.update_stocks_in_textbox(save=True)
+
 
     def print_selected_options(self):
-        selected_options = []
-        selected_indexes = self.list_view.selectionModel().selectedIndexes()
-        selected_items = [index.data() for index in selected_indexes]
-        selected_options.extend(selected_items)
+        selected_items = self.get_selected_items()
+        self.selected_options["selected_items"].extend(selected_items)
+        self.make_selected_items_unique()
         year_selected = self.combo2.currentText()
-        selected_options.append("year:" + year_selected)
+        self.selected_options["year"] = "year:" + year_selected
         component_number = self.combo3.currentText()
-        selected_options.append("component:" + component_number)
-        self.text_box.setText("\n".join(selected_options))
+        self.selected_options["components"] = "components:" + component_number
+        self.text_box.setText(
+            "\n".join(
+                [
+                    " ".join(self.selected_options["selected_items"]),
+                    self.selected_options["year"],
+                    self.selected_options["components"]
+                ]
+            )
+        )
         
-        controller.generate_and_display_graph(selected_items, year_selected, component_number)
+        controller.generate_and_display_graph(self.selected_options["selected_items"], year_selected, component_number)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
