@@ -4,3 +4,4 @@ numpy
 matplotlib
 scipy
 PySide6
+PyQt5
